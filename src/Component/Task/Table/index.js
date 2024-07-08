@@ -13,6 +13,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Checkbox from "@mui/material/Checkbox";
+import TablePagination from "@mui/material/TablePagination";
 
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
@@ -44,6 +45,7 @@ function getComparator(order, orderBy) {
 // only support modern browsers you can replace stableSort(exampleArray, exampleComparator)
 // with exampleArray.slice().sort(exampleComparator)
 function stableSort(array, comparator) {
+  console.log("aaaa", array, comparator);
   const stabilizedThis = array.map((el, index) => [el, index]);
   stabilizedThis.sort((a, b) => {
     const order = comparator(a[0], b[0]);
@@ -52,6 +54,12 @@ function stableSort(array, comparator) {
     }
     return a[1] - b[1];
   });
+
+  console.log(
+    "akash",
+    stabilizedThis.map((el) => el[0])
+  );
+
   return stabilizedThis.map((el) => el[0]);
 }
 
@@ -250,7 +258,8 @@ function EnhancedTable() {
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [allTripData, setTripData] = useState(TripList.data.slice(0, 200));
-  const [rowsPerPage, setRowsPerPage] = React.useState(allTripData?.length);
+  const [tempData, setTempData] = useState(TripList.data.slice(0, 200));
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -291,10 +300,12 @@ function EnhancedTable() {
   };
 
   const handleChangePage = (event, newPage) => {
+    // debugger;
     setPage(newPage);
   };
 
   const handleChangeRowsPerPage = (event) => {
+    // debugger;
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -302,8 +313,7 @@ function EnhancedTable() {
   const isSelected = (id) => selected.indexOf(id) !== -1;
 
   // Avoid a layout jump when reaching the last page with empty rows.
-  const emptyRows =
-    page > 0 ? Math.max(0, (1 + page) * allTripData.length - 10) : 0;
+  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - 10) : 0;
 
   const visibleRows = React.useMemo(
     () =>
@@ -311,7 +321,14 @@ function EnhancedTable() {
         page * rowsPerPage,
         page * rowsPerPage + rowsPerPage
       ),
-    [order, orderBy, page, rowsPerPage]
+    [order, orderBy, page, rowsPerPage, allTripData]
+  );
+
+  console.log(
+    "visibleRows",
+    visibleRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
   );
 
   const { palette } = createTheme();
@@ -379,22 +396,40 @@ function EnhancedTable() {
   };
 
   const [tripDetails, setTripDetails] = useState({
-    totalTrip: 0,
+    totalTrip: tempData.length,
     tripDelivered: 0,
     tripDelayed: 0,
     tripReachedDestination: 0,
     tripInTransit: 0,
+    ontime: 0,
   });
 
+  const Difference_In_Days = (difference_In_Time) => {
+    return Math.round(difference_In_Time / (1000 * 3600 * 24));
+  };
+
   useEffect(() => {
-    let totalTrip = 0;
+    // let totalTrip = 0;
     let tripDelivered = 0;
     let tripDelayed = 0;
     let tripReachedDestination = 0;
     let tripInTransit = 0;
+    let ontime = 0;
+
+    let current_eta;
 
     allTripData.forEach((trip) => {
-      totalTrip++;
+      // totalTrip++;
+
+      const { lastPingTime, tripStartTime, etaDays } = trip;
+      let time =
+        new Date(lastPingTime).getTime() - new Date(tripStartTime).getTime();
+
+      current_eta = Difference_In_Days(time);
+
+      if (etaDays >= current_eta) {
+        ontime++;
+      }
       switch (trip.currenStatus) {
         case "Delayed":
           tripDelayed++;
@@ -411,17 +446,29 @@ function EnhancedTable() {
     });
 
     setTripDetails({
-      totalTrip,
+      totalTrip: tempData.length,
       tripDelivered,
       tripDelayed,
       tripReachedDestination,
       tripInTransit,
+      ontime,
     });
   }, [allTripData]);
 
+  console.log("tripDetails", tripDetails);
+
+  const filterTableData = (fl) => {
+    if (fl === "Total trips") {
+      setTripData(tempData);
+      return;
+    }
+    const filteredData = tempData.filter((trip) => trip.currenStatus === fl);
+    setTripData(filteredData);
+  };
+
   return (
     <ThemeProvider theme={theme}>
-      {allTripData?.length && <Header tripDetails={tripDetails} />}
+      {<Header tripDetails={tripDetails} filterTableData={filterTableData} />}
       <CustomModal
         handleClose={handleClose}
         handleOpen={handleOpen}
@@ -460,7 +507,7 @@ function EnhancedTable() {
                 rowCount={8}
               />
               <TableBody>
-                {visibleRows.map((row, index) => {
+                {visibleRows?.map((row, index) => {
                   const isItemSelected = isSelected(row._id);
                   const labelId = `enhanced-table-checkbox-${index}`;
 
@@ -492,9 +539,6 @@ function EnhancedTable() {
                   let statusTatColor = {};
 
                   let getOnlyDateValue = new Date(lastPingTime).getDate();
-                  const Difference_In_Days = (difference_In_Time) => {
-                    return Math.round(difference_In_Time / (1000 * 3600 * 24));
-                  };
 
                   let tripStartTime_ = new Date(tripStartTime).getTime();
                   let lastPingTime_ = new Date(lastPingTime).getTime();
@@ -504,12 +548,13 @@ function EnhancedTable() {
                   );
 
                   if (etaDays === 0 || etaDays < 0) {
+                    console.log(etaDays, "Others", _id);
                     calculateTatStatuts = "Others";
                     statusTatColor = {
-                      color: "#038700",
-                      backgroundColor: "#0387001A",
+                      backgroundColor: "grey",
                     };
-                  } else if (etaDays >= calculateTheDateDifference) {
+                  } else if (etaDays < calculateTheDateDifference) {
+                    console.log(etaDays, calculateTheDateDifference, "Delayed");
                     calculateTatStatuts = "Delayed";
                     statusTatColor = {
                       color: "#FE9023",
@@ -524,13 +569,29 @@ function EnhancedTable() {
                         new Date(tripStartTime).getTime();
 
                       current_eta = Difference_In_Days(timeCalculate);
+
+                      if (etaDays < current_eta) {
+                        console.log(
+                          etaDays,
+                          calculateTheDateDifference,
+                          "Delayed"
+                        );
+                        calculateTatStatuts = "Delayed";
+                        statusTatColor = {
+                          color: "#FE9023",
+                          backgroundColor: "#FE90231A",
+                        };
+                      }
                     } else if (lastPingTime) {
-                      current_eta =
+                      let time =
                         new Date(lastPingTime).getTime() -
                         new Date(tripStartTime).getTime();
+
+                      current_eta = Difference_In_Days(time);
                     }
 
-                    if (etaDays <= current_eta) {
+                    if (etaDays >= current_eta) {
+                      console.log(etaDays, current_eta, "Ontime");
                       calculateTatStatuts = "Ontime";
                       statusTatColor = {
                         color: "#038700",
@@ -606,27 +667,27 @@ function EnhancedTable() {
                     </TableRow>
                   );
                 })}
-                {emptyRows > 0 && (
+                {/* {emptyRows > 0 && (
                   <TableRow
                     style={{
-                      height: (dense ? 33 : 53) * emptyRows,
+                      // height: (dense ? 33 : 53) * emptyRows,
                     }}
                   >
                     <TableCell colSpan={6} />
                   </TableRow>
-                )}
+                )} */}
               </TableBody>
             </Table>
           </TableContainer>
-          {/* <TablePagination
-            rowsPerPageOptions={[10]}
+          <TablePagination
+            // rowsPerPageOptions={[10]}
             component="div"
-            count={allTripData.length / 10}
+            count={allTripData.length / 2}
             rowsPerPage={10}
             page={page}
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
-          /> */}
+          />
         </Paper>
       </Box>
     </ThemeProvider>
