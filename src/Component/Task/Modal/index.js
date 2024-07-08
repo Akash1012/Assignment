@@ -211,7 +211,8 @@ const CustomModal = (props) => {
                 <Stack direction="row" spacing={4}>
                   <LocalizationProvider dateAdapter={AdapterDayjs}>
                     <DateTimePicker
-                      label="Controlled picker"
+                      label="Date Time"
+                      fullWidth
                       value={value}
                       onChange={(newValue) => setValue(newValue)}
                     />

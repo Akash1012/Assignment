@@ -249,7 +249,7 @@ function EnhancedTable() {
   const [selected, setSelected] = React.useState([]);
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
-  const [allTripData, setTripData] = useState(TripList.data);
+  const [allTripData, setTripData] = useState(TripList.data.slice(0, 200));
   const [rowsPerPage, setRowsPerPage] = React.useState(allTripData?.length);
 
   const handleRequestSort = (event, property) => {
