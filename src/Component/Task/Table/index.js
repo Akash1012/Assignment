@@ -421,7 +421,7 @@ function EnhancedTable() {
 
   return (
     <ThemeProvider theme={theme}>
-      <Header tripDetails={tripDetails} />
+      {allTripData?.length && <Header tripDetails={tripDetails} />}
       <CustomModal
         handleClose={handleClose}
         handleOpen={handleOpen}
